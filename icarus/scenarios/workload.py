@@ -91,7 +91,7 @@ class StationaryWorkload(object):
             raise ValueError('beta must be positive')
         self.receivers = [v for v in topology.nodes_iter()
                      if topology.node[v]['stack'][0] == 'receiver']
-        self.zipf = TruncatedZipfDist(alpha, n_contents)
+        self.zipf = TruncatedZipfDist(alpha, n_contents-1)
         self.n_contents = n_contents
         self.contents = range(1, n_contents + 1)
         self.n_services = n_services
@@ -112,17 +112,23 @@ class StationaryWorkload(object):
         t_event = 0.0
         flow_id = 0
 
-        while req_counter < self.n_warmup + self.n_measured:
+        eventObj = self.model.eventQ[0] if len(self.model.eventQ) > 0 else None
+        while req_counter < self.n_warmup + self.n_measured or len(self.model.eventQ) > 0:
             t_event += (random.expovariate(self.rate))
 
             eventObj = self.model.eventQ[0] if len(self.model.eventQ) > 0 else None
+            print "len(eventObj): " + repr(len(self.model.eventQ))
             while eventObj is not None and eventObj.time < t_event:
                 heapq.heappop(self.model.eventQ)
                 log = (req_counter >= self.n_warmup)
                 event = {'receiver' : eventObj.receiver, 'content': eventObj.service, 'log' : log, 'node' : eventObj.node, 'flow_id' : eventObj.flow_id, 'deadline' : eventObj.deadline, 'response' : eventObj.response}
                 yield (eventObj.time, event)
                 eventObj = self.model.eventQ[0] if len(self.model.eventQ) > 0 else None
-                       
+
+            if req_counter >= (self.n_warmup + self.n_measured):
+                # skip below if we already sent all the requests
+                continue
+
             if self.beta == 0:
                 receiver = random.choice(self.receivers)
             else:
@@ -131,8 +137,8 @@ class StationaryWorkload(object):
             content = int(self.zipf.rv())
             log = (req_counter >= self.n_warmup)
             flow_id += 1
-            deadline = self.model.services[service].deadline
-            event = {'receiver': receiver, 'content' : content, 'log' : log, 'node' : node ,'flow_id': flow_id, 'deadline': deadline, 'response' : response}
+            deadline = self.model.services[content].deadline
+            event = {'receiver': receiver, 'content' : content, 'log' : log, 'node' : node ,'flow_id': flow_id, 'deadline': deadline, 'response' : False}
             yield (t_event, event)
             req_counter += 1
         raise StopIteration()

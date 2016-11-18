@@ -21,12 +21,14 @@ ___license___ = 'GNU GPLv2'
 # executed and the classes/functions registered.
 __modules_to_register = [
      'icarus.models.cache',
+     'icarus.models.service',
      'icarus.models.strategy',
      'icarus.execution.collectors',
      'icarus.results.readwrite',
      'icarus.scenarios.topology',
      'icarus.scenarios.contentplacement',
      'icarus.scenarios.cacheplacement',
+     'icarus.scenarios.compSpotplacement',
      'icarus.scenarios.workload',
                          ]
 

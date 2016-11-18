@@ -19,6 +19,8 @@ import logging
 import networkx as nx
 import fnss
 
+import heapq 
+
 from icarus.registry import CACHE_POLICY
 from icarus.util import path_links, iround
 from icarus.models.service.compSpot import ComputationalSpot
@@ -36,7 +38,7 @@ logger = logging.getLogger('orchestration')
 class Event(object):
     """Implementation of an Event object: arrival of a request to a node"""
 
-    def __init__(self, time, receiver, service, node, flow_id, deadline, response)
+    def __init__(self, time, receiver, service, node, flow_id, deadline, response):
         """Constructor
         Parameters
         ----------
@@ -266,6 +268,12 @@ class NetworkView(object):
 
         return self.model.services
 
+    def compSpot(self, node):
+        """Return the computation spot at a given node
+        """
+
+        return self.model.compSpot[node]
+
     def cache_nodes(self, size=False):
         """Returns a list of nodes with caching capability
 
@@ -487,8 +495,8 @@ class NetworkModel(object):
         # The actual services processing requests
         self.services = []
         for service in range(0, n_services):
-            service_time = (random.expovariate(2*rate))
-            deadline = service_time + (random.expovariate(rate/2))
+            service_time = (random.expovariate(rate/10))
+            deadline = service_time + (random.expovariate(rate/50))
             s = Service(service_time, deadline)
             self.services.append(s)
         
@@ -721,7 +729,7 @@ class NetworkController(object):
         if node in self.model.cache:
             return self.model.cache[node].remove(self.session['content'])
 
-    def add_event(time, receiver, service, node, flow_id, deadline, response)
+    def add_event(self, time, receiver, service, node, flow_id, deadline, response):
         """Add an arrival event to the eventQ
         """
         e = Event(time, receiver, service, node, flow_id, deadline, response)

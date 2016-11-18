@@ -15,7 +15,7 @@ import signal
 import traceback
 
 from icarus.execution import exec_experiment
-from icarus.registry import TOPOLOGY_FACTORY, COMPUTATION_PLACEMENT, CACHE_PLACEMENT, CONTENT_PLACEMENT, \
+from icarus.registry import TOPOLOGY_FACTORY, COMPUTATION_PLACEMENT, CACHE_PLACEMENT, CONTENT_PLACEMENT, COMPUTATION_PLACEMENT, \
                             CACHE_POLICY, WORKLOAD, DATA_COLLECTOR, STRATEGY
 from icarus.results import ResultSet
 from icarus.util import SequenceNumber, timestr
@@ -215,7 +215,7 @@ def run_scenario(settings, params, curr_exp, n_exp):
                 logger.error('No computation placement named %s was found.'
                              % computationpl_name)
                 return None
-            COMPUTATION_PLACEMENT[cachepl_name](topology, **cachepl_spec)
+            COMPUTATION_PLACEMENT[computationpl_name](topology, **computationpl_spec)
 
         # Assign caches to nodes
         if 'cache_placement' in tree:
@@ -247,9 +247,13 @@ def run_scenario(settings, params, curr_exp, n_exp):
 
         # caching and routing strategy definition
         strategy = tree['strategy']
+        warmup_strategy = tree['warmup_strategy']
         if strategy['name'] not in STRATEGY:
             logger.error('No implementation of strategy %s was found.' % strategy['name'])
             return None
+        if warmup_strategy['name'] not in STRATEGY:
+            logger.error('No implementation of warm-up strategy %s was found.' % warmup_strategy['name'])
+            return None  
 
         # cache eviction policy definition
         cache_policy = tree['cache_policy']

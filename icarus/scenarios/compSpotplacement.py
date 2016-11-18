@@ -14,7 +14,7 @@ __all__ = [
           ]
 
 @register_computation_placement('CENTRALITY')
-def central_computation_placement(topology, computation_budget, **kwargs):
+def central_computation_placement(topology, computation_budget, n_services, **kwargs):
     """Places computation budget proportionally to the betweenness centrality of the
     node.
     
@@ -26,10 +26,16 @@ def central_computation_placement(topology, computation_budget, **kwargs):
         The cumulative computation budget in terms of the number of VMs
     """
     betw = nx.betweenness_centrality(topology)
-    total_betw = sum(betw.values())
+    root = [v for v in topology.graph['icr_candidates']
+            if topology.node[v]['depth'] == 0][0]
+    total_betw = sum(betw.values()) - betw[root]
     icr_candidates = topology.graph['icr_candidates']
     for v in icr_candidates:
+        if v is root:
+            continue
         topology.node[v]['stack'][1]['computation_size'] = iround(computation_budget*betw[v]/total_betw)
+    
+    topology.node[root]['stack'][1]['computation_size'] = n_services*1000 #TODO have a parameter here
 
 @register_computation_placement('UNIFORM')
 def uniform_computation_placement(topology, computation_budget, **kwargs):

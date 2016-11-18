@@ -111,32 +111,50 @@ def topology_tree(k, h, delay=1, **kwargs):
     delay : float
         The link delay in milliseconds
 
-    Returns
+    Returns 
     -------
     topology : IcnTopology
         The topology object
     """
     topology = fnss.k_ary_tree_topology(k, h)
-    receivers = [v for v in topology.nodes_iter()
-                 if topology.node[v]['depth'] == h]
-    sources = [v for v in topology.nodes_iter()
-               if topology.node[v]['depth'] == 0]
-    routers = [v for v in topology.nodes_iter()
-              if topology.node[v]['depth'] > 0
-              and topology.node[v]['depth'] < h]
+    for u, v in topology.edges_iter():
+        topology.edge[u][v]['type'] = 'internal'
+        print "Edge between " + repr(u) + " and " + repr(v)
+    for v in topology.nodes_iter():
+        print "Depth of " + repr(v) + " is " + repr(topology.node[v]['depth'])
+    
+    # set weights and delays on all links
+    fnss.set_weights_constant(topology, 1.0)
+    fnss.set_delays_constant(topology, delay, 'ms')
+    
+    routers = topology.nodes()
     topology.graph['icr_candidates'] = set(routers)
+    
+    edge_routers = [v for v in topology.nodes_iter()
+                 if topology.node[v]['depth'] == h]
+    root = [v for v in topology.nodes_iter()
+               if topology.node[v]['depth'] == 0]
+    #routers = [v for v in topology.nodes_iter()
+    #          if topology.node[v]['depth'] > 0
+    #          and topology.node[v]['depth'] < h]
+    n_receivers = len(edge_routers)
+    receivers = ['rec_%d' % i for i in range(n_receivers)]
+    for i in range(n_receivers):
+        topology.add_edge(receivers[i], edge_routers[i], delay=0, type='internal')
+    n_sources = len(root) 
+    sources = ['src_%d' % i for i in range(n_sources)]
+    for i in range(n_sources):
+        topology.add_edge(sources[i], root[0], delay=0, type='internal')
+
+    print "The number of sources: " + repr(n_sources)
+    print "The number of receivers: " + repr(n_receivers)
     for v in sources:
         fnss.add_stack(topology, v, 'source')
     for v in receivers:
         fnss.add_stack(topology, v, 'receiver')
     for v in routers:
         fnss.add_stack(topology, v, 'router')
-    # set weights and delays on all links
-    fnss.set_weights_constant(topology, 1.0)
-    fnss.set_delays_constant(topology, delay, 'ms')
     # label links as internal
-    for u, v in topology.edges_iter():
-        topology.edge[u][v]['type'] = 'internal'
     return IcnTopology(topology)
 
 

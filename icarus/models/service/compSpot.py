@@ -23,7 +23,7 @@ class ComputationalSpot(object):
     Queue. The service time of the Queue is extracted from the service properties. 
     """
 
-    def __init__(self, numOfVMs, n_services, services, dist=None):
+    def __init__(self, numOfVMs, n_services, services, dist=None, measurement_interval = 10):
         """Constructor
 
         Parameters
@@ -31,7 +31,10 @@ class ComputationalSpot(object):
         numOfVMs: total number of VMs available at the computational spot
         n_services : size of service population
         services : list of all the services with their attributes
+        measurement_interval : perform upstream (i.e., probe) measurement and decide which services to run.
         """
+
+        print "Number of VMS: " + repr(numOfVMs)
 
         self.numOfVMs = numOfVMs
         self.n_services = n_services
@@ -55,10 +58,13 @@ class ComputationalSpot(object):
         self.virtual_finish = {} # hypothetical finish time
         self.deadline = {} # remaining deadline of a flow
         self.upstream_service_time = {} # observed service time from upstream
+        self.measurement_interval = measurement_interval
+        self.last_measurement_time = -1*measurement_interval
+        self.services = services
 
         if dist is None:
             # setup a random set of services to run initially
-            for range(0, numOfVMs):
+            for x in range(0, numOfVMs):
                 service_index = random.choice(range(0, n_services))
                 self.service_counts[service_index] += 1
 
@@ -87,11 +93,11 @@ class ComputationalSpot(object):
         else:
             return finishTime
 
-    def runVirtualService(service, time, flow_id, deadline):
+    def runVirtualService(self, service, time, flow_id, deadline):
         """ compute hypothetical finish time of a request sent upstream
         """
         serviceTime = self.services[service].service_time
-        tailFinish = self.getvirtualTailFinishTime(service, time)
+        tailFinish = self.getVirtualTailFinishTime(service, time)
         completion = tailFinish + serviceTime
 
         if completion > time + deadline:
@@ -100,8 +106,8 @@ class ComputationalSpot(object):
             self.virtual_finish[flow_id] = completion
             self.virtualTailFinishTime[service] += serviceTime
 
-    def run_service(self, service, time, deadline, flow_id):
-        """Attempt to run the service at this spot
+    def run_service(self, service, time, deadline, flow_id, is_cloud):
+        """run the service at this spot.
 
         Parameter
         ---------
@@ -115,19 +121,28 @@ class ComputationalSpot(object):
         completion time of the request if successful; otherwise 0
 
         """
+        #if not is_cloud and ((time - self.last_measurement_time) >= self.measurement_interval):
+            # perform measurements
 
-        self.arrival[flow_id] = time
+        if is_cloud:
+            print "Runnning in cloud!"
+            tailFinish = self.getFinishTime(service, time)
+            serviceTime = self.services[service].service_time/self.service_counts[service]
+            self.tailFinishTime[service] += serviceTime
+            return self.tailFinishTime[service]
+            
+        self.arrival_time[flow_id] = time
         self.deadline[flow_id] = deadline
         tailFinish = self.getFinishTime(service, time)
         serviceTime = self.services[service].service_time/self.service_counts[service]
         completionTime = tailFinish + serviceTime
         if completionTime > time + deadline:
-            self.runVirtualService(service, time, flow_id)
+            self.runVirtualService(service, time, flow_id, deadline)
             return 0 #Failed to run
         else:
             self.tailFinishTime[service] += serviceTime
             # TODO compute contribution (Problem: what if we don't know upstream_service_time)
-            return self.tailFinishTime
+            return self.tailFinishTime[service]
 
     def process_response(self, service, time, flow_id):
         """Process an arriving response packet
@@ -146,10 +161,11 @@ class ComputationalSpot(object):
             arr_time = self.arrival_time[flow_id]
             elapsed = time - arr_time
             contribution = (elapsed - self.virtual_finish[flow_id])/self.deadline[flow_id]
-            self.virtual_metric += contribution
+            self.virtual_metric[service] += contribution
             self.virtual_finish.pop(flow_id, None)
         
-        self.upstream_service_time[service] = time - self.arrival_time[flow_id]
+            self.upstream_service_time[service] = time - self.arrival_time[flow_id]
+
         self.arrival_time.pop(flow_id, None)
         self.deadline.pop(flow_id, None)
 
