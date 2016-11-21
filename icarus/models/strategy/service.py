@@ -17,13 +17,18 @@ class ServiceRouting(Strategy):
     """ A distributed approach for service-centric routing
     """
    
-    def __init__(self, view, controller, measurement_interval=10, **kwargs):
+    def __init__(self, view, controller, replacement_interval=10, **kwargs):
         super(ServiceRouting, self).__init__(view, controller)
-        self.measurement_interval = measurement_interval
+        self.replacement_interval = replacement_interval
+        self.last_replacement = 0
         self.receivers = view.topology().receivers()
 
     @inheritdoc(Strategy)
     def process_event(self, time, receiver, content, log, node, flow_id, deadline, response):
+
+        if time - self.last_replacement > self.replacement_interval:
+            self.controller.perform_replacement(1, self.replacement_interval)
+            self.last_replacement = time
 
         print "\nEvent\n time: " + repr(time) + " receiver  " + repr(receiver) + " service " + repr(content) + " node " + repr(node) + " flow_id " + repr(flow_id) + " deadline " + repr(deadline) + " response " + repr(response) 
 
@@ -48,7 +53,7 @@ class ServiceRouting(Strategy):
         if response is True:
             # response is on its way back to the receiver
             if node is receiver:
-                self.controller.end_session() #TODO add flow_time
+                #self.controller.end_session() #TODO add flow_time
                 return
             else:
                 if compSpot is not None:
@@ -61,12 +66,12 @@ class ServiceRouting(Strategy):
 
         else:
             # Processing a request
+            compSpot.process_request(service, time, deadline, flow_id)
             source = self.view.content_source(service)
             path = self.view.shortest_path(node, source)
-            is_cloud = (path[1] == source)
             upstream_cs = []
             if self.view.has_service(node, service):
-                compTime = compSpot.run_service(service, time, deadline, flow_id, is_cloud)
+                compTime = compSpot.run_service(service, time, deadline, flow_id)
                 if compTime is 0:
                     # Pass the request upstream
                     path = self.view.shortest_path(node, source)

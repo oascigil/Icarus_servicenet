@@ -35,7 +35,7 @@ def central_computation_placement(topology, computation_budget, n_services, **kw
             continue
         topology.node[v]['stack'][1]['computation_size'] = iround(computation_budget*betw[v]/total_betw)
     
-    topology.node[root]['stack'][1]['computation_size'] = n_services*1000 #TODO have a parameter here
+    topology.node[root]['stack'][1]['computation_size'] = -1 #TODO have a parameter here
 
 @register_computation_placement('UNIFORM')
 def uniform_computation_placement(topology, computation_budget, **kwargs):

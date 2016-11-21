@@ -60,10 +60,11 @@ def exec_experiment(topology, workload, netconf, strategy, cache_policy, collect
     warmup_strategy_args = {k: v for k, v in warmup_strategy.iteritems() if k != 'name'}
     strategy_inst = STRATEGY[strategy_name](view, controller, **strategy_args)
     warmup_strategy_inst = STRATEGY[warmup_strategy_name](view, controller, **warmup_strategy_args)
+
     for time, event in workload:
         strategy_inst.process_event(time, **event)
     return collector.results()
-
+    """
     counter = 0
     for time, event in workload:
         if counter < workload.n_warmup:
@@ -73,3 +74,4 @@ def exec_experiment(topology, workload, netconf, strategy, cache_policy, collect
             strategy_inst.process_event(time, **event)
 
     return collector.results()
+    """

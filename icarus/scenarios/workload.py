@@ -117,7 +117,6 @@ class StationaryWorkload(object):
             t_event += (random.expovariate(self.rate))
 
             eventObj = self.model.eventQ[0] if len(self.model.eventQ) > 0 else None
-            print "len(eventObj): " + repr(len(self.model.eventQ))
             while eventObj is not None and eventObj.time < t_event:
                 heapq.heappop(self.model.eventQ)
                 log = (req_counter >= self.n_warmup)
@@ -141,6 +140,8 @@ class StationaryWorkload(object):
             event = {'receiver': receiver, 'content' : content, 'log' : log, 'node' : node ,'flow_id': flow_id, 'deadline': deadline, 'response' : False}
             yield (t_event, event)
             req_counter += 1
+        
+        print "End of iteration: len(eventObj): " + repr(len(self.model.eventQ))
         raise StopIteration()
 
 

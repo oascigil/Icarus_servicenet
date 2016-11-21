@@ -119,6 +119,9 @@ class NetworkView(object):
             raise ValueError('The model argument must be an instance of '
                              'NetworkModel')
         self.model = model
+        for node in model.compSpot.keys():
+            model.compSpot[node].view = self
+            model.compSpot[node].node = node
 
     def content_locations(self, k):
         """Return a set of all current locations of a specific content.
@@ -495,8 +498,10 @@ class NetworkModel(object):
         # The actual services processing requests
         self.services = []
         for service in range(0, n_services):
-            service_time = (random.expovariate(rate/10))
-            deadline = service_time + (random.expovariate(rate/50))
+            service_time = (random.expovariate(rate/100))
+            deadline = service_time + (random.expovariate(rate/200))
+            print "Service: " +repr(service) + " has service time " + repr(service_time)
+            print "Service: " +repr(service) + " has deadline " + repr(deadline)
             s = Service(service_time, deadline)
             self.services.append(s)
         
@@ -734,6 +739,14 @@ class NetworkController(object):
         """
         e = Event(time, receiver, service, node, flow_id, deadline, response)
         heapq.heappush(self.model.eventQ, e)
+
+    def perform_replacement(self, num_reallocations, replacement_interval):
+        """ Perform replacement of services at each computation spot
+        """
+        for node in self.model.compSpot.keys():
+            print "Replacing services @ Node:" + repr(node) + "\n"
+            cs = self.model.compSpot[node]
+            cs.replace_services(num_reallocations, replacement_interval)
     
     def end_session(self, success=True):
         """Close a session
