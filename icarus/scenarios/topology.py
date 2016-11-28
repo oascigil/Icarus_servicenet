@@ -98,7 +98,7 @@ class IcnTopology(fnss.Topology):
 
 
 @register_topology_factory('TREE')
-def topology_tree(k, h, delay=1, **kwargs):
+def topology_tree(k, h, delay=0.05, **kwargs):
     """Returns a tree topology, with a source at the root, receivers at the
     leafs and caches at all intermediate nodes.
 
@@ -140,11 +140,11 @@ def topology_tree(k, h, delay=1, **kwargs):
     n_receivers = len(edge_routers)
     receivers = ['rec_%d' % i for i in range(n_receivers)]
     for i in range(n_receivers):
-        topology.add_edge(receivers[i], edge_routers[i], delay=0, type='internal')
+        topology.add_edge(receivers[i], edge_routers[i], delay=0.01, type='internal')
     n_sources = len(root) 
     sources = ['src_%d' % i for i in range(n_sources)]
     for i in range(n_sources):
-        topology.add_edge(sources[i], root[0], delay=0, type='internal')
+        topology.add_edge(sources[i], root[0], delay=0.01, type='internal')
 
     print "The number of sources: " + repr(n_sources)
     print "The number of receivers: " + repr(n_receivers)

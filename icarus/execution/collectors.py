@@ -46,7 +46,7 @@ class DataCollector(object):
         """
         self.view = view
 
-    def start_session(self, timestamp, receiver, content):
+    def start_session(self, timestamp, receiver, content, flow_id=0, deadline=0):
         """Notifies the collector that a new network session started.
 
         A session refers to the retrieval of a content from a receiver, from
@@ -129,7 +129,7 @@ class DataCollector(object):
         """
         pass
 
-    def end_session(self, success=True):
+    def end_session(self, success=True, timestamp=0, flow_id=0):
         """Reports that the session is closed, i.e. the content has been
         successfully delivered to the receiver or a failure blocked the
         execution of the request
@@ -182,9 +182,9 @@ class CollectorProxy(DataCollector):
                            for e in self.EVENTS}
 
     @inheritdoc(DataCollector)
-    def start_session(self, timestamp, receiver, content):
+    def start_session(self, timestamp, receiver, content, flow_id=0, deadline=0):
         for c in self.collectors['start_session']:
-            c.start_session(timestamp, receiver, content)
+            c.start_session(timestamp, receiver, content, flow_id, deadline)
 
     @inheritdoc(DataCollector)
     def cache_hit(self, node):
@@ -212,9 +212,9 @@ class CollectorProxy(DataCollector):
             c.content_hop(u, v, main_path)
 
     @inheritdoc(DataCollector)
-    def end_session(self, success=True):
+    def end_session(self, success=True, time=0, flow_id=0):
         for c in self.collectors['end_session']:
-            c.end_session(success)
+            c.end_session(success, time, flow_id)
 
     @inheritdoc(DataCollector)
     def results(self):

@@ -61,7 +61,7 @@ class Event(object):
 class Service(object):
     """Implementation of a service object"""
 
-    def __init__(self, service_time, deadline):
+    def __init__(self, service_time=None, deadline=None):
         """Constructor
         Parameters
         ----------
@@ -497,6 +497,54 @@ class NetworkModel(object):
 
         # The actual services processing requests
         self.services = []
+        # Service 0 (not used)
+        service_time = 0.03
+        deadline = 0.40
+        s = Service(service_time, deadline)
+        self.services.append(s)
+        # Service 1:
+        service_time = 0.03
+        deadline = 0.40
+        s = Service(service_time, deadline)
+        self.services.append(s)
+        # Service 2:
+        service_time = 0.03
+        deadline = 0.35
+        s = Service(service_time, deadline)
+        self.services.append(s)
+        # Service 3:
+        service_time = 0.03
+        deadline = 0.30
+        s = Service(service_time, deadline)
+        self.services.append(s)
+        # Service 4:
+        service_time = 0.03
+        deadline = 0.25
+        s = Service(service_time, deadline)
+        self.services.append(s)
+        # Service 5:
+        service_time = 0.03
+        deadline = 0.20
+        s = Service(service_time, deadline)
+        self.services.append(s)
+        # Service 6:
+        service_time = 0.03
+        deadline = 0.15
+        s = Service(service_time, deadline)
+        self.services.append(s)
+        # Service 7:
+        service_time = 0.03
+        deadline = 0.10
+        s = Service(service_time, deadline)
+        self.services.append(s)
+        # Service 8:
+        service_time = 0.03
+        deadline = 0.05
+        s = Service(service_time, deadline)
+        self.services.append(s)
+        # Service 9:
+        
+        """
         for service in range(0, n_services):
             service_time = (random.expovariate(rate/100))
             deadline = service_time + (random.expovariate(rate/200))
@@ -504,7 +552,7 @@ class NetworkModel(object):
             print "Service: " +repr(service) + " has deadline " + repr(deadline)
             s = Service(service_time, deadline)
             self.services.append(s)
-        
+        """
         self.compSpot = {node: ComputationalSpot(comp_size[node], n_services, self.services, None) 
                             for node in comp_size}
 
@@ -566,7 +614,7 @@ class NetworkController(object):
         """Detach the data collector."""
         self.collector = None
 
-    def start_session(self, timestamp, receiver, content, log):
+    def start_session(self, timestamp, receiver, content, log, flow_id=0, deadline=0):
         """Instruct the controller to start a new session (i.e. the retrieval
         of a content).
 
@@ -587,7 +635,7 @@ class NetworkController(object):
                             content=content,
                             log=log)
         if self.collector is not None and self.session['log']:
-            self.collector.start_session(timestamp, receiver, content)
+            self.collector.start_session(timestamp, receiver, content, flow_id, deadline)
 
     def forward_request_path(self, s, t, path=None, main_path=True):
         """Forward a request from node *s* to node *t* over the provided path.
@@ -717,7 +765,7 @@ class NetworkController(object):
             return True
         else:
             return False
-
+    
     def remove_content(self, node):
         """Remove the content being handled from the cache
 
@@ -744,11 +792,11 @@ class NetworkController(object):
         """ Perform replacement of services at each computation spot
         """
         for node in self.model.compSpot.keys():
-            print "Replacing services @ Node:" + repr(node) + "\n"
+            print "\nReplacing services @ Node:" + repr(node) 
             cs = self.model.compSpot[node]
             cs.replace_services(num_reallocations, replacement_interval)
     
-    def end_session(self, success=True):
+    def end_session(self, success=True, timestamp=0, flow_id=0):
         """Close a session
 
         Parameters
@@ -757,7 +805,7 @@ class NetworkController(object):
             *True* if the session was completed successfully, *False* otherwise
         """
         if self.collector is not None and self.session['log']:
-            self.collector.end_session(success)
+            self.collector.end_session(success, timestamp, flow_id)
         self.session = None
 
     def rewire_link(self, u, v, up, vp, recompute_paths=True):
