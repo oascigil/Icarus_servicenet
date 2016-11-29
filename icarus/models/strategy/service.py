@@ -25,9 +25,8 @@ class ServiceRouting(Strategy):
 
     @inheritdoc(Strategy)
     def process_event(self, time, receiver, content, log, node, flow_id, deadline, response):
-        #if receiver is node and response is False:
-        #    self.controller.start_session(time, receiver, flow_id, content, deadline)
-
+        if receiver is node and response is False:
+            self.controller.start_session(time, receiver, content, log, flow_id, deadline)
         if time - self.last_replacement > self.replacement_interval:
             self.controller.perform_replacement(1, self.replacement_interval)
             self.last_replacement = time
@@ -54,7 +53,7 @@ class ServiceRouting(Strategy):
         if response is True:
             # response is on its way back to the receiver
             if node is receiver:
-                #self.controller.end_session(time, flow_id) #TODO add flow_time
+                self.controller.end_session(True, time, flow_id) #TODO add flow_time
                 return
             else:
                 if compSpot is not None:

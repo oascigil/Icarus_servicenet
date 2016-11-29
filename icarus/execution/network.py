@@ -596,7 +596,7 @@ class NetworkController(object):
         model : NetworkModel
             Instance of the network model
         """
-        self.session = None
+        self.session = {}
         self.model = model
         self.collector = None
 
@@ -630,11 +630,13 @@ class NetworkController(object):
             *True* if this session needs to be reported to the collector,
             *False* otherwise
         """
-        self.session = dict(timestamp=timestamp,
+        self.session[flow_id] = dict(timestamp=timestamp,
                             receiver=receiver,
                             content=content,
-                            log=log)
-        if self.collector is not None and self.session['log']:
+                            log=log,
+                            deadline=deadline)
+
+        if self.collector is not None and self.session[flow_id]['log']:
             self.collector.start_session(timestamp, receiver, content, flow_id, deadline)
 
     def forward_request_path(self, s, t, path=None, main_path=True):
@@ -804,9 +806,9 @@ class NetworkController(object):
         success : bool, optional
             *True* if the session was completed successfully, *False* otherwise
         """
-        if self.collector is not None and self.session['log']:
+        if self.collector is not None and self.session[flow_id]['log']:
             self.collector.end_session(success, timestamp, flow_id)
-        self.session = None
+        self.session.pop(flow_id, None)
 
     def rewire_link(self, u, v, up, vp, recompute_paths=True):
         """Rewire an existing link to new endpoints

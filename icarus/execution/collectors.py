@@ -306,13 +306,22 @@ class LatencyCollector(DataCollector):
         self.req_latency = 0.0
         self.sess_count = 0
         self.latency = 0.0
+        self.flow_start = {} # flow_id to start time
+        self.flow_service = {} # flow id to service
+        self.flow_deadline = {} # flow id to deadline
+        self.n_satisfied = 0 # number of satisfied requests
+        self.service_requests = {} #number of requests per service
+        self.service_satisfied = {} #number of satisfied requests per service
         if cdf:
             self.latency_data = collections.deque()
 
     @inheritdoc(DataCollector)
-    def start_session(self, timestamp, receiver, content):
+    def start_session(self, timestamp, receiver, content, flow_id=0, deadline=0):
         self.sess_count += 1
         self.sess_latency = 0.0
+        self.flow_start[flow_id] = timestamp
+        self.flow_deadline[flow_id] = deadline
+        self.flow_service[flow_id] = content
 
     @inheritdoc(DataCollector)
     def request_hop(self, u, v, main_path=True):
@@ -325,18 +334,41 @@ class LatencyCollector(DataCollector):
             self.sess_latency += self.view.link_delay(u, v)
 
     @inheritdoc(DataCollector)
-    def end_session(self, success=True):
+    def end_session(self, success=True, timestamp=0, flow_id=0):
+        sat = False
         if not success:
             return
         if self.cdf:
             self.latency_data.append(self.sess_latency)
         self.latency += self.sess_latency
+        duration = timestamp - self.flow_start[flow_id]
+        if duration <= self.flow_deadline[flow_id]:
+            self.n_satisfied += 1
+            sat = True
+        service = self.flow_service[flow_id]
+        if service not in self.service_requests.keys():
+            self.service_requests[service] = 1
+            self.service_satisfied[service] = 0
+        else:
+            self.service_requests[service] += 1
+
+        if sat:
+            if service in self.service_satisfied.keys():
+                self.service_satisfied[service] += 1
+            else:
+                self.service_satisfied[service] = 1
+
 
     @inheritdoc(DataCollector)
     def results(self):
-        results = Tree({'MEAN': self.latency / self.sess_count})
         if self.cdf:
             results['CDF'] = cdf(self.latency_data)
+        results = Tree({'SATISFACTION' : 1.0*self.n_satisfied/self.sess_count})
+        per_service_sats = {}
+        for service in self.service_requests.keys():
+            per_service_sats[service] = 1.0*self.service_satisfied[service]/self.service_requests[service]
+        results['PER_SERVICE_SATISFACTION'] = per_service_sats
+
         return results
 
 
