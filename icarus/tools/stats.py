@@ -89,7 +89,6 @@ class DiscreteDist(object):
         # random value. Worst case time complexity is O(log2(n))
         return int(np.searchsorted(self._cdf, rv) + 1)
 
-
 class TruncatedZipfDist(DiscreteDist):
     """Implements a truncated Zipf distribution, i.e. a Zipf distribution with
     a finite population, which can hence take values of alpha > 0.

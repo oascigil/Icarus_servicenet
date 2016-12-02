@@ -24,7 +24,7 @@ class ComputationalSpot(object):
     Queue. The service time of the Queue is extracted from the service properties. 
     """
 
-    def __init__(self, numOfVMs, n_services, services, dist=None, measurement_interval = 5, ranking_interval = 20):
+    def __init__(self, numOfVMs, n_services, services, node, dist=None, measurement_interval = 5, ranking_interval = 20):
         """Constructor
 
         Parameters
@@ -41,44 +41,44 @@ class ComputationalSpot(object):
         else:
             self.numOfVMs = numOfVMs
             self.is_cloud = False
-        print "Number of VMS: " + repr(numOfVMs)
+        print ("Number of VMs @node: " + repr(node) + " " + repr(numOfVMs))
         self.n_services = n_services
         # number of VMs per service
-        self.service_counts = {x : 0 for x in range(1, n_services)}
+        self.service_counts = {x : 0 for x in range(0, n_services)}
         # Finish time of the last request (i.e., tail of the queue)
-        self.tailFinishTime = {x : [] for x in range(1, n_services)}
+        self.tailFinishTime = {x : [] for x in range(0, n_services)}
         # Hypothetical finish time of the last request (i.e., tail of the queue)
-        self.virtualTailFinishTime = {x : 0 for x in range(1, n_services)}
+        self.virtualTailFinishTime = {x : 0 for x in range(0, n_services)}
         
         
         # Ranking metrics/statistics
         # number of requests forwarded upstream because deadline is unsatisfiable (i.e., too small to be processed at this node even without congestion)
-        self.forwarded_requests = {x: 0 for x in range(1, n_services)}
+        self.forwarded_requests = {x: 0 for x in range(0, n_services)}
         # Requests run in the virtual service due to congestion:
-        self.virtual_requests = {x: 0 for x in range(1, n_services)}
+        self.virtual_requests = {x: 0 for x in range(0, n_services)}
         # number of requests satisfied locally within the measurement interval
-        self.returned_requests = {x: 0 for x in range(1, n_services)}
+        self.returned_requests = {x: 0 for x in range(0, n_services)}
         # ranking metric of the queue
-        self.metric = {x : 0.0 for x in range(1, n_services)}
+        self.metric = {x : 0.0 for x in range(0, n_services)}
         # ranking metric of the virtual queue
-        self.virtual_metric = {x: 0.0 for x in range(1, n_services)}
+        self.virtual_metric = {x: 0.0 for x in range(0, n_services)}
 
         # PIT table for bookkeeping: arrival times, hypothetical service times, etc. 
         self.arrival_time = {} # arrival time of a request
         self.virtual_finish = {} # hypothetical finish time
         self.deadline = {} # remaining deadline of a flow
-        self.service_deadline = {x: 1 for x in range(1, n_services)} # remaining deadline of a service (based on the deadline value in the incoming packet)
+        self.service_deadline = {x: 1 for x in range(0, n_services)} # remaining deadline of a service (based on the deadline value in the incoming packet)
         self.upstream_service_time = {} # observed service time from upstream
         self.measurement_interval = measurement_interval
-        self.last_measurement_time = {x : -1*measurement_interval for x in range(1, n_services)}
+        self.last_measurement_time = {x : -1*measurement_interval for x in range(0, n_services)}
         self.services = services
         self.view = None
-        self.node = None
+        self.node = node
 
         if dist is None:
             # setup a random set of services to run initially
             for x in range(0, numOfVMs):
-                service_index = random.choice(range(1, n_services))
+                service_index = random.choice(range(0, n_services))
                 self.service_counts[service_index] += 1
 
     def replace_services(self, k, interval):
@@ -91,22 +91,22 @@ class ComputationalSpot(object):
         
         # TODO use service_deadline variable here: if service_deadline < 0, then it makeslittle sense to run this service here at this node. 
         # Compute service utilization
-        utilization = {x:(self.returned_requests[x]*self.services[x].service_time)/(interval*self.service_counts[x]) for x in range(1, self.n_services) if self.service_counts[x] > 0}
-        v_utilization = {x:(self.virtual_requests[x]*self.services[x].service_time)/interval for x in range(1, self.n_services)}
+        utilization = {x:(self.returned_requests[x]*self.services[x].service_time)/(interval*self.service_counts[x]) for x in range(0, self.n_services) if self.service_counts[x] > 0}
+        v_utilization = {x:(self.virtual_requests[x]*self.services[x].service_time)/interval for x in range(0, self.n_services)}
         util = sorted(utilization.keys(), key=utilization.get)
         v_util = sorted(v_utilization.keys(), key = v_utilization.get)
         
         # Take the average of the metrics (per request)
         av_metric = {x:self.metric[x]/(1+self.returned_requests[x]) for x in self.metric.keys()}
         av_virtual_metric = {x:self.virtual_metric[x]/(1+self.virtual_requests[x]) for x in self.virtual_metric.keys() if self.service_deadline[x] > self.services[x].service_time}
-        v_candidates = [x for x in range(1, self.n_services)]
+        v_candidates = [x for x in range(0, self.n_services)]
         v_candidates = sorted(v_candidates, key = av_virtual_metric.get, reverse=True)
-        print "Virtual candidates: " + repr(v_candidates) + repr(av_virtual_metric)
-        candidates = [x for x in range(1, self.n_services) if self.service_counts[x] > 0]
+        print ("Virtual candidates: " + repr(v_candidates) + repr(av_virtual_metric))
+        candidates = [x for x in range(0, self.n_services) if self.service_counts[x] > 0]
         candidates = sorted(candidates, key = av_metric.get)
-        print "candidates to remove: " + repr(candidates) + repr(av_metric)
-        print "service utilization" + repr(utilization) 
-        print "virtual service utilization " + repr(v_utilization)
+        print ("candidates to remove: " + repr(candidates) + repr(av_metric))
+        print ("service utilization" + repr(utilization))
+        print ("virtual service utilization " + repr(v_utilization))
 
         # Replace any idle service instances with non-idle
         """
@@ -128,25 +128,25 @@ class ComputationalSpot(object):
             if av_metric[cand_remove] < av_virtual_metric[cand_replace]:
                 self.service_counts[cand_remove] -= 1
                 self.service_counts[cand_replace] += 1
-                print "Service " + repr(cand_remove) + " is replaced with " + repr(cand_replace)
+                print ("Service " + repr(cand_remove) + " is replaced with " + repr(cand_replace))
                 k -= 1
                 index+=1
             else:
                 break
             
         # Reinitialise the statistics
-        self.forwarded_requests = {x: 0 for x in range(1, self.n_services)}
-        self.virtual_requests = {x: 0 for x in range(1, self.n_services)}
-        self.returned_requests = {x: 0 for x in range(1, self.n_services)}
-        self.metric = {x : 0.0 for x in range(1, self.n_services)}
-        self.virtual_metric = {x: 0.0 for x in range(1, self.n_services)}
+        self.forwarded_requests = {x: 0 for x in range(0, self.n_services)}
+        self.virtual_requests = {x: 0 for x in range(0, self.n_services)}
+        self.returned_requests = {x: 0 for x in range(0, self.n_services)}
+        self.metric = {x : 0.0 for x in range(0, self.n_services)}
+        self.virtual_metric = {x: 0.0 for x in range(0, self.n_services)}
     
     def add_service(self, service, time):
         """
         add a service to the queue and update its occupancy
         """
         if self.service_counts[service] <= 0:
-            print "Error: can not run this service " + repr(service)
+            print ("Error: can not run this service " + repr(service))
             return
 
         finishTimes = self.tailFinishTime[service]
@@ -206,7 +206,7 @@ class ComputationalSpot(object):
         """
         curr_node = self.node
         path = self.view.shortest_path(curr_node, self.view.content_source(service))
-        print "Path is: " + repr(path)
+        print ("Path is: " + repr(path))
         latency = 0
         remaining_deadline = deadline
         curr_time = time
@@ -261,7 +261,7 @@ class ComputationalSpot(object):
         """
 
         if self.is_cloud:
-            print "Runnning in cloud!"
+            print ("Runnning in cloud!")
             tailFinish = self.getFinishTime(service, time)
             serviceTime = self.services[service].service_time
             #self.tailFinishTime[service] += serviceTime
@@ -287,7 +287,7 @@ class ComputationalSpot(object):
             if contribution > 1.0:
                 contribution = 1.0
             elif contribution < 0.0:
-                print "contribution < 0 for run_service " + repr(service) + " upstream measurement: " + repr(self.upstream_service_time[service]) + " finish time: " + repr(finishTime)
+                print ("contribution < 0 for run_service " + repr(service) + " upstream measurement: " + repr(self.upstream_service_time[service]) + " finish time: " + repr(finishTime))
                 contribution = 0.0
             self.metric[service] += contribution
 
@@ -312,12 +312,12 @@ class ComputationalSpot(object):
             elapsed = time - arr_time
             contribution = (time + elapsed - self.virtual_finish[flow_id])/self.deadline[flow_id]
             if contribution < 0:
-                print "Contribution less than 0 for service: " + repr(service) + " at node " + repr(self.node)
+                print ("Contribution less than 0 for service: " + repr(service) + " at node " + repr(self.node))
                 contribution = 0.0
             elif contribution > 1.0:
                 contribution = 1.0
             if self.node is 5 and service is 1:
-                print "Contribution at node: " + repr(self.node) + " service " + repr(service) + " is " + repr(contribution) + " elapsed "  + repr(elapsed) + " virtual finish: " + repr(self.virtual_finish[flow_id]) + " deadline: " + repr(self.deadline[flow_id])
+                print ("Contribution at node: " + repr(self.node) + " service " + repr(service) + " is " + repr(contribution) + " elapsed "  + repr(elapsed) + " virtual finish: " + repr(self.virtual_finish[flow_id]) + " deadline: " + repr(self.deadline[flow_id]))
                 #raise ValueError("contribution must be greater than 0") 
             self.virtual_metric[service] += contribution
             self.virtual_finish.pop(flow_id, None)

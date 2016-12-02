@@ -119,13 +119,18 @@ def topology_tree(k, h, delay=0.05, **kwargs):
     topology = fnss.k_ary_tree_topology(k, h)
     for u, v in topology.edges_iter():
         topology.edge[u][v]['type'] = 'internal'
-        print "Edge between " + repr(u) + " and " + repr(v)
+        if u is 0 or v is 0:
+            topology.edge[u][v]['delay'] = 3*delay
+            print "Edge between " + repr(u) + " and " + repr(v) + " delay: " + repr(topology.edge[u][v]['delay'])
+        else:
+            topology.edge[u][v]['delay'] = delay
+            print "Edge between " + repr(u) + " and " + repr(v) + " delay: " + repr(topology.edge[u][v]['delay'])
     for v in topology.nodes_iter():
         print "Depth of " + repr(v) + " is " + repr(topology.node[v]['depth'])
     
     # set weights and delays on all links
     fnss.set_weights_constant(topology, 1.0)
-    fnss.set_delays_constant(topology, delay, 'ms')
+    #fnss.set_delays_constant(topology, delay, 'ms')
     
     routers = topology.nodes()
     topology.graph['icr_candidates'] = set(routers)

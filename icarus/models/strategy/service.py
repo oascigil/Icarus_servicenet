@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Implementations of all service-based strategies"""
 from __future__ import division
+from __future__ import print_function
 
 import networkx as nx
 
@@ -22,16 +23,33 @@ class ServiceRouting(Strategy):
         self.replacement_interval = replacement_interval
         self.last_replacement = 0
         self.receivers = view.topology().receivers()
+        self.n_requests = {} # mapping service id to number of requests for each edge node
+
+    def print_stats(self):
+        print ("Printing Stats:")
+        for service in self.n_requests.keys():
+            print ("Service: " + repr(service), end=" ")
+            for edge_node in self.n_requests[service].keys():
+                if edge_node in self.n_requests[service].keys():
+                    print ("@Node " + repr(edge_node) + " " + repr(self.n_requests[service][edge_node]), end=" requests ")
+                else:
+                    print (repr(edge_node) + "\t0", end=" ")
+            print ("\n", end="")        
+        self.n_requests = {} 
+
 
     @inheritdoc(Strategy)
     def process_event(self, time, receiver, content, log, node, flow_id, deadline, response):
+        service = content
         if receiver is node and response is False:
             self.controller.start_session(time, receiver, content, log, flow_id, deadline)
         if time - self.last_replacement > self.replacement_interval:
             self.controller.perform_replacement(1, self.replacement_interval)
             self.last_replacement = time
+            self.print_stats()
 
-        print "\nEvent\n time: " + repr(time) + " receiver  " + repr(receiver) + " service " + repr(content) + " node " + repr(node) + " flow_id " + repr(flow_id) + " deadline " + repr(deadline) + " response " + repr(response) 
+        print ("\nEvent\n time: " + repr(time) + " receiver  " + repr(receiver) + " service " + repr(content) + " node " + repr(node) + " flow_id " + repr(flow_id) + " deadline " + repr(deadline) + " response " + repr(response)) 
+
 
         service = content
         compSpot = None
@@ -41,12 +59,22 @@ class ServiceRouting(Strategy):
             if response is False:
                 source = self.view.content_source(service)
                 if node is source:
-                    print "Reached the source node! \n\tthis should not happen!"
+                    print ("Reached the source node! \n\tthis should not happen!")
                     return
                 path = self.view.shortest_path(node, source)
                 next_node = path[1]
+
+                if service not in self.n_requests.keys():
+                    self.n_requests[service] = {}
+                    self.n_requests[service][next_node] = 1
+                else:
+                    if next_node not in self.n_requests[service].keys():
+                        self.n_requests[service][next_node] = 1
+                    else:
+                        self.n_requests[service][next_node] += 1
+
                 delay = self.view.link_delay(node, next_node)
-                print "Pass upstream (no compSpot) to node: " + repr(next_node) + " " + repr(time+delay)
+                print ("Pass upstream (no compSpot) to node: " + repr(next_node) + " " + repr(time+delay))
                 self.controller.add_event(time+delay, receiver, service, next_node, flow_id, deadline-2*delay, False)
                 return
             
@@ -76,14 +104,14 @@ class ServiceRouting(Strategy):
                     path = self.view.shortest_path(node, source)
                     next_node = path[1]
                     delay = self.view.link_delay(node, next_node)
-                    print "Pass upstream congested to node: " + repr(next_node)
+                    print ("Pass upstream congested to node: " + repr(next_node))
                     self.controller.add_event(time+delay, receiver, service, next_node, flow_id, deadline-2.0*delay, False)
                 else:
                     # Success in running the service
                     path = self.view.shortest_path(node, receiver)
                     next_node = path[1]
                     delay = self.view.link_delay(node, next_node)
-                    print "Return Response (success) to node: " + repr(next_node)
+                    print ("Return Response (success) to node: " + repr(next_node))
                     self.controller.add_event(time+compTime+delay, receiver, service, next_node, flow_id, deadline, True)
 
             else:
@@ -92,5 +120,5 @@ class ServiceRouting(Strategy):
                 path = self.view.shortest_path(node, source)
                 next_node = path[1]
                 delay = self.view.link_delay(node, next_node)
-                print "Pass upstream (not running the service) to node " + repr(next_node) + " " + repr(time+delay)
+                print ("Pass upstream (not running the service) to node " + repr(next_node) + " " + repr(time+delay))
                 self.controller.add_event(time+delay, receiver, service, next_node, flow_id, deadline-2.0*delay, False)

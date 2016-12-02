@@ -543,6 +543,14 @@ class NetworkModel(object):
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 9:
+
+        indx=0
+        for service in self.services:
+            if indx is 0:
+                indx+=1
+                continue
+            print "Service: " + repr(indx) + " Deadline: " +repr(self.services[indx].deadline) + " Service Time: " + repr(self.services[indx].service_time)
+            indx+=1
         
         """
         for service in range(0, n_services):
@@ -553,7 +561,7 @@ class NetworkModel(object):
             s = Service(service_time, deadline)
             self.services.append(s)
         """
-        self.compSpot = {node: ComputationalSpot(comp_size[node], n_services, self.services, None) 
+        self.compSpot = {node: ComputationalSpot(comp_size[node], n_services, self.services, node,  None) 
                             for node in comp_size}
 
         policy_name = cache_policy['name']
