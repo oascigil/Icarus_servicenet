@@ -261,7 +261,7 @@ class ComputationalSpot(object):
         """
 
         if self.is_cloud:
-            print ("Runnning in cloud!")
+            print ("Runnning in the cloud!")
             tailFinish = self.getFinishTime(service, time)
             serviceTime = self.services[service].service_time
             #self.tailFinishTime[service] += serviceTime
@@ -283,6 +283,9 @@ class ComputationalSpot(object):
             self.add_service(service, time) 
             # TODO compute contribution (Problem: what if we don't know upstream_service_time)
             finishTime = self.getFinishTime(service, time)
+            self.metric[service]
+            remaining_deadline += deadline
+
             contribution = (time + self.upstream_service_time[service] - finishTime)/self.deadline[flow_id]
             if contribution > 1.0:
                 contribution = 1.0
@@ -316,9 +319,6 @@ class ComputationalSpot(object):
                 contribution = 0.0
             elif contribution > 1.0:
                 contribution = 1.0
-            if self.node is 5 and service is 1:
-                print ("Contribution at node: " + repr(self.node) + " service " + repr(service) + " is " + repr(contribution) + " elapsed "  + repr(elapsed) + " virtual finish: " + repr(self.virtual_finish[flow_id]) + " deadline: " + repr(self.deadline[flow_id]))
-                #raise ValueError("contribution must be greater than 0") 
             self.virtual_metric[service] += contribution
             self.virtual_finish.pop(flow_id, None)
         else:

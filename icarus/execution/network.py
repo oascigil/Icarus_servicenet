@@ -495,8 +495,11 @@ class NetworkModel(object):
                 if cache_size[node] < 1:
                     cache_size[node] = 1
 
-        # The actual services processing requests
+        # Generate the actual services processing requests
         self.services = []
+        """
+        # Hardcoded generation (for testing): 
+
         # Service 0 (not used)
         service_time = 0.03
         deadline = 0.40
@@ -551,16 +554,30 @@ class NetworkModel(object):
                 continue
             print "Service: " + repr(indx) + " Deadline: " +repr(self.services[indx].deadline) + " Service Time: " + repr(self.services[indx].service_time)
             indx+=1
-        
         """
+        
+        #""" GENERATE Services automatically using min, max ranges for service times and deadlines
+        service_time_min = 0.001
+        service_time_max = 0.1
+        delay_min = 0.01
+        delay_max = 0.05
+
+        aFile = open('services.txt', 'w')
+        aFile.write("# ServiceID\tserviceTime\tserviceDeadline\n")
+        service_indx = 0
         for service in range(0, n_services):
-            service_time = (random.expovariate(rate/100))
-            deadline = service_time + (random.expovariate(rate/200))
-            print "Service: " +repr(service) + " has service time " + repr(service_time)
-            print "Service: " +repr(service) + " has deadline " + repr(deadline)
+            service_time = random.uniform(service_time_min, service_time_max)
+            deadline = service_time + random.uniform(delay_min, delay_max)
+            s = str(service_indx) + "\t" + str(service_time) + "\t" + str(deadline) + "\n"
+            aFile.write(s)
+            service_indx += 1
+            #print "Service: " +repr(service) + " has service time " + repr(service_time)
+            #print "Service: " +repr(service) + " has deadline " + repr(deadline)
             s = Service(service_time, deadline)
             self.services.append(s)
-        """
+        aFile.close()
+        #""" END OF Generating Services
+
         self.compSpot = {node: ComputationalSpot(comp_size[node], n_services, self.services, node,  None) 
                             for node in comp_size}
 

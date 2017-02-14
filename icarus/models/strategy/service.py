@@ -40,18 +40,23 @@ class ServiceRouting(Strategy):
 
     @inheritdoc(Strategy)
     def process_event(self, time, receiver, content, log, node, flow_id, deadline, response):
+        """
+        response : True, if this is a response from the cloudlet/cloud
+        deadline : The remaining ? deadline of the request/response
+        flow_id : Id of the flow that the request/response is part of
+        node : the current node at which the request/response arrived
+        """
         service = content
         if receiver is node and response is False:
-            self.controller.start_session(time, receiver, content, log, flow_id, deadline)
+            self.controller.start_session(time, receiver, service, log, flow_id, deadline)
         if time - self.last_replacement > self.replacement_interval:
             self.controller.perform_replacement(1, self.replacement_interval)
             self.last_replacement = time
             self.print_stats()
 
-        print ("\nEvent\n time: " + repr(time) + " receiver  " + repr(receiver) + " service " + repr(content) + " node " + repr(node) + " flow_id " + repr(flow_id) + " deadline " + repr(deadline) + " response " + repr(response)) 
+        print ("\nEvent\n time: " + repr(time) + " receiver  " + repr(receiver) + " service " + repr(service) + " node " + repr(node) + " flow_id " + repr(flow_id) + " deadline " + repr(deadline) + " response " + repr(response)) 
 
 
-        service = content
         compSpot = None
         if self.view.has_computationalSpot(node):
             compSpot = self.view.compSpot(node)
@@ -66,12 +71,12 @@ class ServiceRouting(Strategy):
 
                 if service not in self.n_requests.keys():
                     self.n_requests[service] = {}
-                    self.n_requests[service][next_node] = 1
+                    self.n_requests[service][node] = 1
                 else:
                     if next_node not in self.n_requests[service].keys():
-                        self.n_requests[service][next_node] = 1
+                        self.n_requests[service][node] = 1
                     else:
-                        self.n_requests[service][next_node] += 1
+                        self.n_requests[service][node] += 1
 
                 delay = self.view.link_delay(node, next_node)
                 print ("Pass upstream (no compSpot) to node: " + repr(next_node) + " " + repr(time+delay))
