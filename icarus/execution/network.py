@@ -123,6 +123,10 @@ class NetworkView(object):
             model.compSpot[node].view = self
             model.compSpot[node].node = node
 
+    def service_locations(self, k):
+        """ TODO implement this
+        """
+
     def content_locations(self, k):
         """Return a set of all current locations of a specific content.
 
@@ -177,6 +181,15 @@ class NetworkView(object):
             included)
         """
         return self.model.shortest_path[s][t]
+
+
+    def num_services(self):
+        """
+        Returns
+        ------- 
+        the size of the service population
+        """
+        return self.model.n_services
 
     def all_pairs_shortest_paths(self):
         """Return all pairs shortest paths
@@ -277,6 +290,14 @@ class NetworkView(object):
 
         return self.model.compSpot[node]
 
+    def service_nodes(self):
+        """Return
+        a dictionary consisting of only the nodes with computational spots
+        the dict. maps node to its comp. spot
+        """
+
+        return self.model.compSpot
+
     def cache_nodes(self, size=False):
         """Returns a list of nodes with caching capability
 
@@ -341,7 +362,9 @@ class NetworkView(object):
         
         if self.has_computationalSpot(node):
             cs = self.model.compSpot[node]
-            if cs.service_counts[service] > 0:
+            if cs.is_cloud:
+                return True
+            elif cs.vm_counts[service] > 0:
                 return True
  
         return False
@@ -426,7 +449,7 @@ class NetworkModel(object):
     calls to the network controller.
     """
 
-    def __init__(self, topology, cache_policy, n_services, rate, shortest_path=None):
+    def __init__(self, topology, cache_policy, n_services, rate, seed=0, shortest_path=None):
         """Constructor
 
         Parameters
@@ -497,56 +520,60 @@ class NetworkModel(object):
 
         # Generate the actual services processing requests
         self.services = []
+        self.n_services = n_services
+        internal_link_delay = 0.002 # This is the delay from receiver to router
+        
         """
         # Hardcoded generation (for testing): 
 
         # Service 0 (not used)
-        service_time = 0.03
-        deadline = 0.40
+        service_time = 0.5
+        deadline = 0.5+0.040 + 2*internal_link_delay
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 1:
-        service_time = 0.03
-        deadline = 0.40
+        service_time = 0.5
+        deadline = 0.5 + 0.035 + 2*internal_link_delay
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 2:
-        service_time = 0.03
-        deadline = 0.35
+        service_time = 0.5
+        deadline = 0.5+0.030 + 2*internal_link_delay
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 3:
-        service_time = 0.03
-        deadline = 0.30
+        service_time = 0.5
+        deadline = 0.5+0.025 + 2*internal_link_delay
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 4:
-        service_time = 0.03
-        deadline = 0.25
+        service_time = 0.5
+        deadline = 0.5+0.020 + 2*internal_link_delay
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 5:
-        service_time = 0.03
-        deadline = 0.20
+        service_time = 0.5
+        deadline = 0.5+0.015 + 2*internal_link_delay
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 6:
-        service_time = 0.03
-        deadline = 0.15
+        service_time = 0.5
+        deadline = 0.5+0.015 + 2*internal_link_delay
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 7:
-        service_time = 0.03
-        deadline = 0.10
+        service_time = 0.5
+        deadline = 0.5+0.015 + 2*internal_link_delay
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 8:
-        service_time = 0.03
-        deadline = 0.05
+        service_time = 0.5
+        deadline = 0.5+0.010 + 2*internal_link_delay
         s = Service(service_time, deadline)
         self.services.append(s)
         # Service 9:
-
+        
+       
         indx=0
         for service in self.services:
             if indx is 0:
@@ -559,24 +586,35 @@ class NetworkModel(object):
         #""" GENERATE Services automatically using min, max ranges for service times and deadlines
         service_time_min = 0.001
         service_time_max = 0.1
-        delay_min = 0.01
-        delay_max = 0.05
+        delay_min = 0.005
+        delay_max = 0.05 #0.015*2+0.005*4
 
         aFile = open('services.txt', 'w')
         aFile.write("# ServiceID\tserviceTime\tserviceDeadline\n")
+
         service_indx = 0
+        deadlines = []
+        service_times = []
+        random.seed(seed)
+
         for service in range(0, n_services):
             service_time = random.uniform(service_time_min, service_time_max)
-            deadline = service_time + random.uniform(delay_min, delay_max)
+            deadline = service_time + random.uniform(delay_min, delay_max) + 2*internal_link_delay
+            deadlines.append(deadline)
+            service_times.append(service_time)
+
+        deadlines = sorted(deadlines)
+        for service in range(0, n_services):
+            service_time = service_times[service_indx]
+            deadline = deadlines[service_indx]
+
             s = str(service_indx) + "\t" + str(service_time) + "\t" + str(deadline) + "\n"
             aFile.write(s)
             service_indx += 1
-            #print "Service: " +repr(service) + " has service time " + repr(service_time)
-            #print "Service: " +repr(service) + " has deadline " + repr(deadline)
             s = Service(service_time, deadline)
             self.services.append(s)
         aFile.close()
-        #""" END OF Generating Services
+        #""" #END OF Generating Services
 
         self.compSpot = {node: ComputationalSpot(comp_size[node], n_services, self.services, node,  None) 
                             for node in comp_size}

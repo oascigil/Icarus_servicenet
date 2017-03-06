@@ -144,7 +144,7 @@ class StationaryWorkload(object):
             content = int(self.zipf.rv())
             log = (req_counter >= self.n_warmup)
             flow_id += 1
-            deadline = self.model.services[content].deadline
+            deadline = self.model.services[content].deadline + t_event
             event = {'receiver': receiver, 'content' : content, 'log' : log, 'node' : node ,'flow_id': flow_id, 'deadline': deadline, 'response' : False}
             neighbors = self.topology.neighbors(receiver)
             s = str(t_event) + "\t" + str(neighbors[0]) + "\t" + str(content) + "\n"

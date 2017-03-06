@@ -145,11 +145,11 @@ def topology_tree(k, h, delay=0.005, **kwargs):
     n_receivers = len(edge_routers)
     receivers = ['rec_%d' % i for i in range(n_receivers)]
     for i in range(n_receivers):
-        topology.add_edge(receivers[i], edge_routers[i], delay=0.01, type='internal')
+        topology.add_edge(receivers[i], edge_routers[i], delay=0.002, type='internal')
     n_sources = len(root) 
     sources = ['src_%d' % i for i in range(n_sources)]
     for i in range(n_sources):
-        topology.add_edge(sources[i], root[0], delay=0.01, type='internal')
+        topology.add_edge(sources[i], root[0], delay=0.002, type='internal')
 
     print "The number of sources: " + repr(n_sources)
     print "The number of receivers: " + repr(n_receivers)

@@ -309,9 +309,12 @@ class LatencyCollector(DataCollector):
         self.flow_start = {} # flow_id to start time
         self.flow_service = {} # flow id to service
         self.flow_deadline = {} # flow id to deadline
-        self.n_satisfied = 0 # number of satisfied requests
+        self.n_satisfied = 0.0 # number of satisfied requests
         self.service_requests = {} #number of requests per service
         self.service_satisfied = {} #number of satisfied requests per service
+        self.satrate_timeseries = {}
+        self.time_interval = 10 # time interval to print satisfaction
+        self.time_next_print = self.time_interval
         if cdf:
             self.latency_data = collections.deque()
 
@@ -342,9 +345,11 @@ class LatencyCollector(DataCollector):
             self.latency_data.append(self.sess_latency)
         self.latency += self.sess_latency
         duration = timestamp - self.flow_start[flow_id]
-        if duration <= self.flow_deadline[flow_id]:
+        if self.flow_deadline[flow_id] >= timestamp:
+            # Request is satisfied
             self.n_satisfied += 1
-            sat = True
+            sat = True 
+
         service = self.flow_service[flow_id]
         if service not in self.service_requests.keys():
             self.service_requests[service] = 1
@@ -358,6 +363,13 @@ class LatencyCollector(DataCollector):
             else:
                 self.service_satisfied[service] = 1
 
+        if timestamp > self.time_next_print:
+            self.time_next_print += self.time_interval
+            self.satrate_timeseries[timestamp] = self.n_satisfied/self.sess_count
+
+        del self.flow_deadline[flow_id]
+        del self.flow_start[flow_id]
+        del self.flow_service[flow_id]
 
     @inheritdoc(DataCollector)
     def results(self):
@@ -368,6 +380,10 @@ class LatencyCollector(DataCollector):
         for service in self.service_requests.keys():
             per_service_sats[service] = 1.0*self.service_satisfied[service]/self.service_requests[service]
         results['PER_SERVICE_SATISFACTION'] = per_service_sats
+        results['PER_SERVICE_REQUESTS'] = self.service_requests
+        results['SAT_TIMESERIES'] = self.satrate_timeseries
+        for key in sorted(self.satrate_timeseries):
+            print (repr(key) + " " + repr(self.satrate_timeseries[key]))
 
         return results
 
