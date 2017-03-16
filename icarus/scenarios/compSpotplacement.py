@@ -31,7 +31,7 @@ def central_computation_placement(topology, computation_budget, n_services, **kw
     total_betw = sum(betw.values()) - betw[root]
     icr_candidates = topology.graph['icr_candidates']
     for v in icr_candidates:
-        if v is root:
+        if v == root:
             continue
         topology.node[v]['stack'][1]['computation_size'] = iround(computation_budget*betw[v]/total_betw)
     

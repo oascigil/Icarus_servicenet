@@ -95,6 +95,12 @@ class DataCollector(object):
             The server node which served the content
         """
         pass
+    
+    def replacement_interval_over(self, replacement_interval, timestamp):
+        """ Reports the end of a replacement interval for services
+        """
+
+        pass
 
     def request_hop(self, u, v, main_path=True):
         """Reports that a request has traversed the link *(u, v)*
@@ -165,7 +171,7 @@ class CollectorProxy(DataCollector):
     """
 
     EVENTS = ('start_session', 'end_session', 'cache_hit', 'cache_miss', 'server_hit',
-              'request_hop', 'content_hop', 'results')
+              'request_hop', 'content_hop', 'results', 'replacement_interval_over')
 
     def __init__(self, view, collectors):
         """Constructor
@@ -210,6 +216,11 @@ class CollectorProxy(DataCollector):
     def content_hop(self, u, v, main_path=True):
         for c in self.collectors['content_hop']:
             c.content_hop(u, v, main_path)
+
+    @inheritdoc(DataCollector)
+    def replacement_interval_over(self, replacement_interval, timestamp):
+        for c in self.collectors['replacement_interval_over']:
+            c.replacement_interval_over(replacement_interval, timestamp)
 
     @inheritdoc(DataCollector)
     def end_session(self, success=True, time=0, flow_id=0):
@@ -305,18 +316,55 @@ class LatencyCollector(DataCollector):
         self.view = view
         self.req_latency = 0.0
         self.sess_count = 0
+        self.interval_sess_count = 0
         self.latency = 0.0
         self.flow_start = {} # flow_id to start time
         self.flow_service = {} # flow id to service
         self.flow_deadline = {} # flow id to deadline
         self.n_satisfied = 0.0 # number of satisfied requests
+        self.n_satisfied_interval = 0.0
         self.service_requests = {} #number of requests per service
         self.service_satisfied = {} #number of satisfied requests per service
-        self.satrate_timeseries = {}
-        self.time_interval = 10 # time interval to print satisfaction
-        self.time_next_print = self.time_interval
+        self.satrate_times = {}
+        self.idle_times = {}
+        self.per_service_idle_times = {}
         if cdf:
             self.latency_data = collections.deque()
+        self.css = self.view.service_nodes()
+        self.n_services = self.css.items()[0][1].n_services
+
+    @inheritdoc(DataCollector)
+    def replacement_interval_over(self, replacement_interval, timestamp):
+        self.satrate_times[timestamp] = self.n_satisfied_interval/self.interval_sess_count
+        self.satrate_times[timestamp] = self.n_satisfied/self.sess_count
+
+        self.interval_sess_count = 0
+        self.n_satisfied_interval = 0
+        
+        vms_per_service = [0 for x in range(0, self.n_services)]
+        service_idle_times = [0 for x in range(0, self.n_services)]
+        avg_idle_times = [0.0 for x in range(0, self.n_services)] # per vm idle times
+
+        for node, cs in self.css.items():
+            if cs.is_cloud:
+                continue
+            num_of_vms = cs.numOfVMs
+            for indx in range(0, num_of_vms):
+                service = cs.vmAssignment[indx]
+                vms_per_service[service] += 1
+                service_idle_times[service] += cs.getIdleTime(indx, timestamp)
+                #print ("Service: " + repr(service) + " at node: " + repr(node) + " is idle for: " + repr(100*(val/self.last_timestamp)) + " percent of the time")
+
+        total_idle_time = 0.0
+        for indx in range(0, self.n_services):
+            if vms_per_service[indx] > 0:
+                avg_idle_times[indx] = service_idle_times[indx]/vms_per_service[indx]
+                total_idle_time += avg_idle_times[indx]
+            else:
+                avg_idle_times[indx] = 0.0
+
+        self.idle_times[timestamp] = (total_idle_time/self.n_services)/replacement_interval
+        self.per_service_idle_times[timestamp] = [avg_idle_times[x]/replacement_interval for x in range(0, self.n_services)]
 
     @inheritdoc(DataCollector)
     def start_session(self, timestamp, receiver, content, flow_id=0, deadline=0):
@@ -325,6 +373,7 @@ class LatencyCollector(DataCollector):
         self.flow_start[flow_id] = timestamp
         self.flow_deadline[flow_id] = deadline
         self.flow_service[flow_id] = content
+        self.interval_sess_count += 1
 
     @inheritdoc(DataCollector)
     def request_hop(self, u, v, main_path=True):
@@ -348,6 +397,7 @@ class LatencyCollector(DataCollector):
         if self.flow_deadline[flow_id] >= timestamp:
             # Request is satisfied
             self.n_satisfied += 1
+            self.n_satisfied_interval += 1
             sat = True 
 
         service = self.flow_service[flow_id]
@@ -363,10 +413,6 @@ class LatencyCollector(DataCollector):
             else:
                 self.service_satisfied[service] = 1
 
-        if timestamp > self.time_next_print:
-            self.time_next_print += self.time_interval
-            self.satrate_timeseries[timestamp] = self.n_satisfied/self.sess_count
-
         del self.flow_deadline[flow_id]
         del self.flow_start[flow_id]
         del self.flow_service[flow_id]
@@ -381,12 +427,18 @@ class LatencyCollector(DataCollector):
             per_service_sats[service] = 1.0*self.service_satisfied[service]/self.service_requests[service]
         results['PER_SERVICE_SATISFACTION'] = per_service_sats
         results['PER_SERVICE_REQUESTS'] = self.service_requests
-        results['SAT_TIMESERIES'] = self.satrate_timeseries
-        for key in sorted(self.satrate_timeseries):
-            print (repr(key) + " " + repr(self.satrate_timeseries[key]))
-
+        results['SAT_TIMES'] = self.satrate_times
+        results['IDLE_TIMES'] = self.idle_times 
+        print "Printing Sat. rate times:"
+        for key in sorted(self.satrate_times):
+            print (repr(key) + " " + repr(self.satrate_times[key]))
+        
+        print "Printing Idle times:"
+        for key in sorted(self.idle_times):
+            print (repr(key) + " " + repr(self.idle_times[key]))
+        #results['VMS_PER_SERVICE'] = self.vms_per_service       
+        
         return results
-
 
 @register_data_collector('CACHE_HIT_RATIO')
 class CacheHitRatioCollector(DataCollector):

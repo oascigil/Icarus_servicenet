@@ -93,6 +93,7 @@ class ComputationalSpot(object):
         
         if self.vmTailFinishTime[indx] < time:
             self.idleTime[indx] += time - self.vmTailFinishTime[indx]
+            self.vmTailFinishTime[indx] = time
 
         return self.idleTime[indx]
 
@@ -110,6 +111,7 @@ class ComputationalSpot(object):
         
         if self.virtualTailFinishTime[service] < time:
             self.virtual_idleTime[service] += time - self.virtualTailFinishTime[service]
+            self.virtualTailFinishTime[service] = time
 
         return self.virtual_idleTime[service]
 
@@ -161,7 +163,7 @@ class ComputationalSpot(object):
             else:
                 self.getVirtualTailFinishTime(service, time)
                 
-    def reassign_vm(self, vm, service):
+    def reassign_vm(self, vm, service, debug):
         """
         Instantiate service at the given vm
         """
@@ -172,7 +174,8 @@ class ComputationalSpot(object):
             raise ValueError("Error in reassign_vm: vmAssignment and service_counts are inconsistent")
 
         old_service = self.vmAssignment[vm]
-        #print "Replacing service: " + repr(old_service) + " with: " + repr(service) + " at node: " + repr(self.node) 
+        if debug:
+            print "Replacing service: " + repr(old_service) + " with: " + repr(service) + " at node: " + repr(self.node) 
         self.vmIndex[old_service].remove(vm)
         self.vmIndex[service].append(vm)
         self.vmAssignment[vm] = service
@@ -203,7 +206,7 @@ class ComputationalSpot(object):
         else:
             return finishTime
 
-    def runVirtualService(self, service, time, deadline):
+    def runVirtualService(self, service, time, deadline, return_delay):
         """ 
         compute hypothetical finish time of a request sent upstream
 
@@ -216,7 +219,7 @@ class ComputationalSpot(object):
         tailFinish = self.getVirtualTailFinishTime(service, time)
         completion = tailFinish + serviceTime
 
-        if completion <= deadline:
+        if completion + return_delay <= deadline:
             self.virtualTailFinishTime[service] += serviceTime
             self.virtual_requests[service] += 1
             return [True, completion] #Success

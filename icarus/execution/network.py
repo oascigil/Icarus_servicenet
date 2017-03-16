@@ -255,6 +255,26 @@ class NetworkView(object):
             The link delay
         """
         return self.model.link_delay[(u, v)]
+    
+    def path_delay(self, s, t):
+        """Return the delay from *s* to *t*
+
+        Parameters
+        ----------
+        s : any hashable type
+            Origin node
+        t : any hashable type
+            Destination node
+        Returns
+        -------
+        delay : float
+        """
+        path = self.shortest_path(s, t)
+        delay = 0.0
+        for indx in range(0, len(path)-1):
+            delay += self.link_delay(path[indx], path[indx+1])
+
+        return delay
 
     def topology(self):
         """Return the network topology
@@ -603,7 +623,7 @@ class NetworkModel(object):
             deadlines.append(deadline)
             service_times.append(service_time)
 
-        deadlines = sorted(deadlines)
+        #deadlines = sorted(deadlines)
         for service in range(0, n_services):
             service_time = service_times[service_indx]
             deadline = deadlines[service_indx]
@@ -853,14 +873,12 @@ class NetworkController(object):
         e = Event(time, receiver, service, node, flow_id, deadline, response)
         heapq.heappush(self.model.eventQ, e)
 
-    def perform_replacement(self, num_reallocations, replacement_interval):
+    def replacement_interval_over(self, flow_id, replacement_interval, timestamp):
         """ Perform replacement of services at each computation spot
         """
-        for node in self.model.compSpot.keys():
-            print "\nReplacing services @ Node:" + repr(node) 
-            cs = self.model.compSpot[node]
-            cs.replace_services(num_reallocations, replacement_interval)
-    
+        #if self.collector is not None and self.session[flow_id]['log']:
+        self.collector.replacement_interval_over(replacement_interval, timestamp)
+            
     def end_session(self, success=True, timestamp=0, flow_id=0):
         """Close a session
 
